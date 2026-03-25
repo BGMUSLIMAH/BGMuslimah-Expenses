@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="BGMUSLIMAH" />
+  <title>BGMUSLIMAH Expense Tracker</title>
+  
+  <!-- App Icons -->
+  <link rel="apple-touch-icon" href="images/logo.png">
+  <link rel="icon" type="image/png" href="images/logo.png">
+  
+  <!-- PWA Meta -->
+  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="BGMUSLIMAH">
+  <style>
+    :root {
+      --bg: #f5f5f5;
+      --card: #ffffff;
+      --text: #111111;
+      --muted: #666666;
+      --line: #e7e7e7;
+      --soft: #f8f8f8;
+      --danger: #b42318;
+      --success: #067647;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      min-height: 100vh;
+    }
+
+    .wrap {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 16px 16px 32px;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 24px;
+      padding: 18px;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.04);
+      margin-bottom: 14px;
+    }
+
+    .brand {
+      font-size: 12px;
+      letter-spacing: 0.24em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    h1, h2, h3, p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 28px;
+      margin-bottom: 14px;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin-bottom: 12px;
+    }
+
+    .grid2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .stat {
+      background: var(--soft);
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .date-value {
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+
+    label {
+      display: block;
+      font-size: 14px;
+      margin: 12px 0 6px;
+      font-weight: 600;
+    }
+
+    input, select, textarea, button {
+      width: 100%;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      padding: 14px;
+      font-size: 16px;
+      font-family: inherit;
+      background: #fff;
+      color: var(--text);
+    }
+
+    textarea {
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .row > * { flex: 1; }
+
+    .btn {
+      background: #111111;
+      color: white;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-secondary {
+      background: white;
+      color: #111111;
+      border: 1px solid var(--line);
+      cursor: pointer;
+    }
+
+    .btn-danger {
+      color: var(--danger);
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar button {
+      flex: 1 1 180px;
+    }
+
+    .breakdown-item,
+    .entry {
+      background: var(--soft);
+      border-radius: 18px;
+      padding: 14px;
+      margin-bottom: 10px;
+    }
+
+    .between {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .entry-title {
+      font-weight: 700;
+    }
+
+    .entry-note {
+      margin-top: 8px;
+      color: #444;
+      font-size: 14px;
+      white-space: pre-wrap;
+    }
+
+    .entry-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .entry-actions button {
+      padding: 10px 12px;
+      font-size: 14px;
+    }
+
+    .empty {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .status.ok { color: var(--success); }
+    .status.err { color: var(--danger); }
+
+    .hint {
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    @media (max-width: 480px) {
+      .wrap { padding: 12px 12px 28px; }
+      .card { border-radius: 22px; padding: 16px; }
+      h1 { font-size: 26px; }
+      .grid2 { grid-template-columns: 1fr 1fr; }
+      .stat-value { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="brand">BGMUSLIMAH</div>
+      <h1>Expense Tracker</h1>
+
+      <div class="grid2">
+        <div class="stat">
+          <div class="stat-label">This month</div>
+          <div class="stat-value" id="monthlyTotal">€0.00</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Auto date</div>
+          <div class="date-value" id="todayDate"></div>
+        </div>
+      </div>
+
+      <label for="category">Expense</label>
+      <select id="category">
+        <option>Fabric</option>
+        <option>Studio</option>
+        <option>Sewer</option>
+        <option>Fuel</option>
+        <option>Delivery</option>
+        <option>Packaging</option>
+        <option>Equipment</option>
+        <option>Marketing</option>
+        <option>Other</option>
+      </select>
+
+      <label for="amount">Amount</label>
+      <input id="amount" type="number" step="0.01" inputmode="decimal" placeholder="0.00" />
+
+      <label for="note">Note</label>
+      <textarea id="note" placeholder="Optional note"></textarea>
+
+      <div class="row">
+        <button class="btn" id="saveBtn">Add expense</button>
+        <button class="btn-secondary" id="cancelBtn" style="display:none;">Cancel</button>
+      </div>
+
+      <div id="syncStatus" class="status"></div>
+      <div class="hint">
+        This version works offline on the phone and also supports Google Sheets sync once you paste your script URL into the code.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Monthly breakdown</h2>
+      <div id="breakdown"></div>
+    </div>
+
+    <div class="card">
+      <h2>Entries</h2>
+      <div id="entries"></div>
+    </div>
+
+    <div class="card">
+      <h2>Export</h2>
+      <div class="toolbar">
+        <button class="btn-secondary" id="exportCsvBtn">Export CSV</button>
+        <button class="btn-secondary" id="clearAllBtn">Clear all data</button>
+      </div>
+      <div class="hint">
+        CSV opens in Excel. Google Sheets sync is optional and can run at the same time.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'bgmuslimah_expenses';
+    const SHEETS_WEB_APP_URL = ''; // paste your Google Apps Script web app URL here later
+
+    const today = new Date().toISOString().slice(0, 10);
+    const todayDateEl = document.getElementById('todayDate');
+    const monthlyTotalEl = document.getElementById('monthlyTotal');
+    const breakdownEl = document.getElementById('breakdown');
+    const entriesEl = document.getElementById('entries');
+    const categoryEl = document.getElementById('category');
+    const amountEl = document.getElementById('amount');
+    const noteEl = document.getElementById('note');
+    const saveBtn = document.getElementById('saveBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const exportCsvBtn = document.getElementById('exportCsvBtn');
+    const clearAllBtn = document.getElementById('clearAllBtn');
+    const syncStatusEl = document.getElementById('syncStatus');
+
+    let editingId = null;
+    let entries = loadEntries();
+
+    todayDateEl.textContent = today;
+
+    function monthKey(dateString) {
+      const d = new Date(dateString);
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    }
+
+    function loadEntries() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveEntries() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    }
+
+    function euro(value) {
+      return '€' + Number(value || 0).toFixed(2);
+    }
+
+    function setStatus(message, type) {
+      syncStatusEl.textContent = message || '';
+      syncStatusEl.className = 'status' + (type ? ' ' + type : '');
+    }
+
+    function resetForm() {
+      editingId = null;
+      categoryEl.value = 'Fabric';
+      amountEl.value = '';
+      noteEl.value = '';
+      saveBtn.textContent = 'Add expense';
+      cancelBtn.style.display = 'none';
+      setStatus('', '');
+    }
+
+    function renderMonthlyTotal() {
+      const currentMonth = monthKey(today);
+      const total = entries
+        .filter(e => monthKey(e.date) === currentMonth)
+        .reduce((sum, e) => sum + Number(e.amount || 0), 0);
+      monthlyTotalEl.textContent = euro(total);
+    }
+
+    function renderBreakdown() {
+      const currentMonth = monthKey(today);
+      const totals = {};
+
+      entries.filter(e => monthKey(e.date) === currentMonth).forEach(e => {
+        totals[e.category] = (totals[e.category] || 0) + Number(e.amount || 0);
+      });
+
+      const pairs = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+
+      if (!pairs.length) {
+        breakdownEl.innerHTML = '<div class="empty">No expenses yet.</div>';
+        return;
+      }
+
+      breakdownEl.innerHTML = pairs.map(([category, total]) => `
+        <div class="breakdown-item between">
+          <span>${escapeHtml(category)}</span>
+          <strong>${euro(total)}</strong>
+        </div>
+      `).join('');
+    }
+
+    function renderEntries() {
+      if (!entries.length) {
+        entriesEl.innerHTML = '<div class="empty">No entries yet.</div>';
+        return;
+      }
+
+      entriesEl.innerHTML = entries.map(entry => `
+        <div class="entry">
+          <div class="between">
+            <div>
+              <div class="entry-title">${escapeHtml(entry.category)}</div>
+              <div class="muted">${escapeHtml(entry.date)}</div>
+            </div>
+            <div><strong>${euro(entry.amount)}</strong></div>
+          </div>
+          ${entry.note ? `<div class="entry-note">${escapeHtml(entry.note)}</div>` : ''}
+          <div class="entry-actions">
+            <button class="btn-secondary" onclick="editEntry(${entry.id})">Edit</button>
+            <button class="btn-secondary btn-danger" onclick="deleteEntry(${entry.id})">Delete</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function render() {
+      renderMonthlyTotal();
+      renderBreakdown();
+      renderEntries();
+    }
+
+    function editEntry(id) {
+      const entry = entries.find(e => e.id === id);
+      if (!entry) return;
+
+      editingId = id;
+      categoryEl.value = entry.category;
+      amountEl.value = entry.amount;
+      noteEl.value = entry.note || '';
+      saveBtn.textContent = 'Save changes';
+      cancelBtn.style.display = 'block';
+      setStatus('Editing existing entry.', 'ok');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function deleteEntry(id) {
+      entries = entries.filter(e => e.id !== id);
+      saveEntries();
+      render();
+      if (editingId === id) resetForm();
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    async function syncEntryToGoogleSheets(entry, action) {
+      if (!SHEETS_WEB_APP_URL) return true;
+
+      try {
+        const payload = {
+          action: action,
+          id: entry.id,
+          date: entry.date,
+          category: entry.category,
+          amount: entry.amount,
+          note: entry.note,
+          timestamp: new Date().toISOString()
+        };
+
+        const response = await fetch(SHEETS_WEB_APP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+
+        const text = await response.text();
+        return response.ok || text;
+      } catch (error) {
+        return false;
+      }
+    }
+
+    saveBtn.addEventListener('click', async function () {
+      const category = categoryEl.value;
+      const amount = amountEl.value.trim();
+      const note = noteEl.value.trim();
+
+      if (!amount || Number(amount) <= 0) {
+        alert('Enter a valid amount.');
+        return;
+      }
+
+      let entry;
+      let action;
+
+      if (editingId !== null) {
+        entries = entries.map(e => {
+          if (e.id === editingId) {
+            entry = { ...e, category, amount, note };
+            return entry;
+          }
+          return e;
+        });
+        action = 'update';
+      } else {
+        entry = {
+          id: Date.now(),
+          date: today,
+          category,
+          amount,
+          note,
+        };
+        entries.unshift(entry);
+        action = 'create';
+      }
+
+      saveEntries();
+      render();
+      setStatus('Saving...', 'ok');
+
+      const synced = await syncEntryToGoogleSheets(entry, action);
+      if (synced) {
+        setStatus(SHEETS_WEB_APP_URL ? 'Saved and synced to Google Sheets.' : 'Saved on this device.', 'ok');
+      } else {
+        setStatus('Saved on this device, but Google Sheets sync failed.', 'err');
+      }
+
+      resetForm();
+    });
+
+    cancelBtn.addEventListener('click', resetForm);
+
+    exportCsvBtn.addEventListener('click', function () {
+      if (!entries.length) {
+        alert('No data to export.');
+        return;
+      }
+
+      const rows = [
+        ['Date', 'Category', 'Amount', 'Note'],
+        ...entries.map(e => [e.date, e.category, e.amount, e.note || ''])
+      ];
+
+      const csv = rows.map(row => row.map(csvEscape).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'bgmuslimah-expenses.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    clearAllBtn.addEventListener('click', function () {
+      if (!confirm('Delete all saved expenses from this device?')) return;
+      entries = [];
+      saveEntries();
+      resetForm();
+      render();
+      setStatus('All local data cleared.', 'ok');
+    });
+
+    function csvEscape(value) {
+      const s = String(value ?? '');
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+
+    render();
+  </script>
+</body>
+</html>
