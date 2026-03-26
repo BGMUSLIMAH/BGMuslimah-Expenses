@@ -315,276 +315,394 @@
   </div>
 
   <script>
-    const STORAGE_KEY = 'bgmuslimah_expenses';
-    const SHEETS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzvEQlFMvalo8r42dCK_AKkZtMwIVns-lpuDrkPUs_0K3xSablZRl4Qu65SQVItrn6w/exec'; // paste your Google Apps Script web app URL here later
+  const STORAGE_KEY = 'bgmuslimah_expenses';
+  const PENDING_SYNC_KEY = 'bgmuslimah_pending_sync';
+  const SHEETS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzvEQlFMvalo8r42dCK_AKkZtMwIVns-lpuDrkPUs_0K3xSablZRl4Qu65SQVItrn6w/exec';
 
-    const today = new Date().toISOString().slice(0, 10);
-    const todayDateEl = document.getElementById('todayDate');
-    const monthlyTotalEl = document.getElementById('monthlyTotal');
-    const breakdownEl = document.getElementById('breakdown');
-    const entriesEl = document.getElementById('entries');
-    const categoryEl = document.getElementById('category');
-    const amountEl = document.getElementById('amount');
-    const noteEl = document.getElementById('note');
-    const saveBtn = document.getElementById('saveBtn');
-    const cancelBtn = document.getElementById('cancelBtn');
-    const exportCsvBtn = document.getElementById('exportCsvBtn');
-    const clearAllBtn = document.getElementById('clearAllBtn');
-    const syncStatusEl = document.getElementById('syncStatus');
+  const todayDateEl = document.getElementById('todayDate');
+  const monthlyTotalEl = document.getElementById('monthlyTotal');
+  const breakdownEl = document.getElementById('breakdown');
+  const entriesEl = document.getElementById('entries');
+  const categoryEl = document.getElementById('category');
+  const amountEl = document.getElementById('amount');
+  const noteEl = document.getElementById('note');
+  const saveBtn = document.getElementById('saveBtn');
+  const cancelBtn = document.getElementById('cancelBtn');
+  const exportCsvBtn = document.getElementById('exportCsvBtn');
+  const clearAllBtn = document.getElementById('clearAllBtn');
+  const syncStatusEl = document.getElementById('syncStatus');
 
-    let editingId = null;
-    let entries = loadEntries();
+  let editingId = null;
+  let entries = loadEntries();
+  let pendingSync = loadPendingSync();
 
-    todayDateEl.textContent = today;
+  todayDateEl.textContent = getToday();
 
-    function monthKey(dateString) {
-      const d = new Date(dateString);
-      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  function getToday() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function monthKey(dateString) {
+    const d = new Date(dateString);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  }
+
+  function generateId() {
+    return 'exp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  }
+
+  function loadEntries() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
     }
+  }
 
-    function loadEntries() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return [];
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch (e) {
-        return [];
-      }
+  function saveEntries() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  }
+
+  function loadPendingSync() {
+    try {
+      const raw = localStorage.getItem(PENDING_SYNC_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
     }
+  }
 
-    function saveEntries() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-    }
+  function savePendingSync() {
+    localStorage.setItem(PENDING_SYNC_KEY, JSON.stringify(pendingSync));
+  }
 
-    function euro(value) {
-      return '€' + Number(value || 0).toFixed(2);
-    }
+  function euro(value) {
+    return '€' + Number(value || 0).toFixed(2);
+  }
 
-    function setStatus(message, type) {
-      syncStatusEl.textContent = message || '';
-      syncStatusEl.className = 'status' + (type ? ' ' + type : '');
-    }
+  function setStatus(message, type) {
+    syncStatusEl.textContent = message || '';
+    syncStatusEl.className = 'status' + (type ? ' ' + type : '');
+  }
 
-    function resetForm() {
-      editingId = null;
-      categoryEl.value = 'Fabric';
-      amountEl.value = '';
-      noteEl.value = '';
-      saveBtn.textContent = 'Add expense';
-      cancelBtn.style.display = 'none';
-      setStatus('', '');
-    }
+  function resetForm(keepStatus) {
+    editingId = null;
+    categoryEl.value = 'Fabric';
+    amountEl.value = '';
+    noteEl.value = '';
+    saveBtn.textContent = 'Add expense';
+    cancelBtn.style.display = 'none';
+    todayDateEl.textContent = getToday();
+    if (!keepStatus) setStatus('', '');
+  }
 
-    function renderMonthlyTotal() {
-      const currentMonth = monthKey(today);
-      const total = entries
-        .filter(e => monthKey(e.date) === currentMonth)
-        .reduce((sum, e) => sum + Number(e.amount || 0), 0);
-      monthlyTotalEl.textContent = euro(total);
-    }
+  function renderMonthlyTotal() {
+    const currentMonth = monthKey(getToday());
+    const total = entries
+      .filter(e => monthKey(e.date) === currentMonth)
+      .reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    monthlyTotalEl.textContent = euro(total);
+  }
 
-    function renderBreakdown() {
-      const currentMonth = monthKey(today);
-      const totals = {};
+  function renderBreakdown() {
+    const currentMonth = monthKey(getToday());
+    const totals = {};
 
-      entries.filter(e => monthKey(e.date) === currentMonth).forEach(e => {
+    entries
+      .filter(e => !e.deleted && monthKey(e.date) === currentMonth)
+      .forEach(e => {
         totals[e.category] = (totals[e.category] || 0) + Number(e.amount || 0);
       });
 
-      const pairs = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+    const pairs = Object.entries(totals).sort((a, b) => b[1] - a[1]);
 
-      if (!pairs.length) {
-        breakdownEl.innerHTML = '<div class="empty">No expenses yet.</div>';
-        return;
-      }
-
-      breakdownEl.innerHTML = pairs.map(([category, total]) => `
-        <div class="breakdown-item between">
-          <span>${escapeHtml(category)}</span>
-          <strong>${euro(total)}</strong>
-        </div>
-      `).join('');
+    if (!pairs.length) {
+      breakdownEl.innerHTML = '<div class="empty">No expenses yet.</div>';
+      return;
     }
 
-    function renderEntries() {
-      if (!entries.length) {
-        entriesEl.innerHTML = '<div class="empty">No entries yet.</div>';
-        return;
-      }
-
-      entriesEl.innerHTML = entries.map(entry => `
-        <div class="entry">
-          <div class="between">
-            <div>
-              <div class="entry-title">${escapeHtml(entry.category)}</div>
-              <div class="muted">${escapeHtml(entry.date)}</div>
-            </div>
-            <div><strong>${euro(entry.amount)}</strong></div>
-          </div>
-          ${entry.note ? `<div class="entry-note">${escapeHtml(entry.note)}</div>` : ''}
-          <div class="entry-actions">
-            <button class="btn-secondary" onclick="editEntry(${entry.id})">Edit</button>
-            <button class="btn-secondary btn-danger" onclick="deleteEntry(${entry.id})">Delete</button>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    function render() {
-      renderMonthlyTotal();
-      renderBreakdown();
-      renderEntries();
-    }
-
-    function editEntry(id) {
-      const entry = entries.find(e => e.id === id);
-      if (!entry) return;
-
-      editingId = id;
-      categoryEl.value = entry.category;
-      amountEl.value = entry.amount;
-      noteEl.value = entry.note || '';
-      saveBtn.textContent = 'Save changes';
-      cancelBtn.style.display = 'block';
-      setStatus('Editing existing entry.', 'ok');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    function deleteEntry(id) {
-      entries = entries.filter(e => e.id !== id);
-      saveEntries();
-      render();
-      if (editingId === id) resetForm();
-    }
-
-    function escapeHtml(value) {
-      return String(value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    }
-
-    async function syncEntryToGoogleSheets(entry, action) {
-      if (!SHEETS_WEB_APP_URL) return true;
-
-      try {
-        const payload = {
-          action: action,
-          id: entry.id,
-          date: entry.date,
-          category: entry.category,
-          amount: entry.amount,
-          note: entry.note,
-          timestamp: new Date().toISOString()
-        };
-
-        const response = await fetch(SHEETS_WEB_APP_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload)
-        });
-
-        const text = await response.text();
-        return response.ok || text;
-      } catch (error) {
-        return false;
-      }
-    }
-
-    saveBtn.addEventListener('click', async function () {
-      const category = categoryEl.value;
-      const amount = amountEl.value.trim();
-      const note = noteEl.value.trim();
-
-      if (!amount || Number(amount) <= 0) {
-        alert('Enter a valid amount.');
-        return;
-      }
-
-      let entry;
-      let action;
-
-      if (editingId !== null) {
-        entries = entries.map(e => {
-          if (e.id === editingId) {
-            entry = { ...e, category, amount, note };
-            return entry;
-          }
-          return e;
-        });
-        action = 'update';
-      } else {
-        entry = {
-          id: Date.now(),
-          date: today,
-          category,
-          amount,
-          note,
-        };
-        entries.unshift(entry);
-        action = 'create';
-      }
-
-      saveEntries();
-      render();
-      setStatus('Saving...', 'ok');
-
-      const synced = await syncEntryToGoogleSheets(entry, action);
-      if (synced) {
-        setStatus(SHEETS_WEB_APP_URL ? 'Saved and synced to Google Sheets.' : 'Saved on this device.', 'ok');
-      } else {
-        setStatus('Saved on this device, but Google Sheets sync failed.', 'err');
-      }
-
-      resetForm();
-    });
-
-    cancelBtn.addEventListener('click', resetForm);
-
-    exportCsvBtn.addEventListener('click', function () {
-  if (!entries.length) {
-    alert('No data to export.');
-    return;
+    breakdownEl.innerHTML = pairs.map(([category, total]) => `
+      <div class="breakdown-item between">
+        <span>${escapeHtml(category)}</span>
+        <strong>${euro(total)}</strong>
+      </div>
+    `).join('');
   }
 
-  const total = entries.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  function renderEntries() {
+    const visibleEntries = entries.filter(e => !e.deleted);
 
-  const rows = [
-    ['Date', 'Category', 'Amount', 'Note'],
-    ...entries.map(e => [e.date, e.category, e.amount, e.note || '']),
-    ['', 'Total', total.toFixed(2), '']
-  ];
-
-  const csv = rows.map(row => row.map(csvEscape).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'bgmuslimah-expenses.csv';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-});
-
-    clearAllBtn.addEventListener('click', function () {
-      if (!confirm('Delete all saved expenses from this device?')) return;
-      entries = [];
-      saveEntries();
-      resetForm();
-      render();
-      setStatus('All local data cleared.', 'ok');
-    });
-
-    function csvEscape(value) {
-      const s = String(value ?? '');
-      return '"' + s.replace(/"/g, '""') + '"';
+    if (!visibleEntries.length) {
+      entriesEl.innerHTML = '<div class="empty">No entries yet.</div>';
+      return;
     }
 
+    entriesEl.innerHTML = visibleEntries.map(entry => `
+      <div class="entry">
+        <div class="between">
+          <div>
+            <div class="entry-title">${escapeHtml(entry.category)}</div>
+            <div class="muted">${escapeHtml(entry.date)}</div>
+          </div>
+          <div><strong>${euro(entry.amount)}</strong></div>
+        </div>
+        ${entry.note ? `<div class="entry-note">${escapeHtml(entry.note)}</div>` : ''}
+        <div class="entry-actions">
+          <button class="btn-secondary" onclick="editEntry('${entry.id}')">Edit</button>
+          <button class="btn-secondary btn-danger" onclick="deleteEntry('${entry.id}')">Delete</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function render() {
+    renderMonthlyTotal();
+    renderBreakdown();
+    renderEntries();
+  }
+
+  function editEntry(id) {
+    const entry = entries.find(e => e.id === id && !e.deleted);
+    if (!entry) return;
+
+    editingId = id;
+    categoryEl.value = entry.category;
+    amountEl.value = entry.amount;
+    noteEl.value = entry.note || '';
+    saveBtn.textContent = 'Save changes';
+    cancelBtn.style.display = 'block';
+    setStatus('Editing existing entry.', 'ok');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function deleteEntry(id) {
+    const entry = entries.find(e => e.id === id);
+    if (!entry) return;
+
+    entry.deleted = true;
+    entry.updatedAt = new Date().toISOString();
+
+    saveEntries();
     render();
-  </script>
+    resetForm(true);
+    setStatus('Deleting...', 'ok');
+
+    const op = {
+      action: 'delete',
+      entry: {
+        id: entry.id,
+        date: entry.date,
+        category: entry.category,
+        amount: entry.amount,
+        note: entry.note || '',
+        createdAt: entry.createdAt || '',
+        updatedAt: entry.updatedAt
+      }
+    };
+
+    const synced = await syncOrQueue(op);
+
+    if (synced) {
+      setStatus('Deleted and synced to Google Sheets.', 'ok');
+    } else {
+      setStatus('Deleted locally. Google Sheets sync failed and will retry later.', 'err');
+    }
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  async function sendToGoogleSheets(payload) {
+    if (!SHEETS_WEB_APP_URL) return true;
+
+    const response = await fetch(SHEETS_WEB_APP_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const text = await response.text();
+
+    if (!response.ok) {
+      throw new Error('HTTP ' + response.status + ' ' + text);
+    }
+
+    try {
+      const parsed = JSON.parse(text);
+      return parsed && parsed.success === true;
+    } catch (e) {
+      return true;
+    }
+  }
+
+  async function syncOrQueue(op) {
+    try {
+      const ok = await sendToGoogleSheets(op);
+      if (!ok) throw new Error('Sync failed');
+      return true;
+    } catch (error) {
+      pendingSync.push(op);
+      savePendingSync();
+      return false;
+    }
+  }
+
+  async function flushPendingSync() {
+    if (!pendingSync.length) return;
+
+    const stillPending = [];
+
+    for (const op of pendingSync) {
+      try {
+        const ok = await sendToGoogleSheets(op);
+        if (!ok) stillPending.push(op);
+      } catch (error) {
+        stillPending.push(op);
+      }
+    }
+
+    pendingSync = stillPending;
+    savePendingSync();
+
+    if (!pendingSync.length) {
+      setStatus('All pending changes synced to Google Sheets.', 'ok');
+    } else {
+      setStatus(pendingSync.length + ' change(s) still waiting to sync.', 'err');
+    }
+  }
+
+  saveBtn.addEventListener('click', async function () {
+    const category = categoryEl.value;
+    const amount = amountEl.value.trim();
+    const note = noteEl.value.trim();
+
+    if (!amount || Number(amount) <= 0) {
+      alert('Enter a valid amount.');
+      return;
+    }
+
+    let entry;
+
+    if (editingId !== null) {
+      entries = entries.map(e => {
+        if (e.id === editingId) {
+          entry = {
+            ...e,
+            category,
+            amount,
+            note,
+            updatedAt: new Date().toISOString()
+          };
+          return entry;
+        }
+        return e;
+      });
+    } else {
+      entry = {
+        id: generateId(),
+        date: getToday(),
+        category,
+        amount,
+        note,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        deleted: false
+      };
+      entries.unshift(entry);
+    }
+
+    saveEntries();
+    render();
+    setStatus('Saving...', 'ok');
+
+    const op = {
+      action: 'upsert',
+      entry: {
+        id: entry.id,
+        date: entry.date,
+        category: entry.category,
+        amount: entry.amount,
+        note: entry.note || '',
+        createdAt: entry.createdAt || entry.updatedAt,
+        updatedAt: entry.updatedAt
+      }
+    };
+
+    const synced = await syncOrQueue(op);
+
+    if (synced) {
+      setStatus(SHEETS_WEB_APP_URL ? 'Saved and synced to Google Sheets.' : 'Saved on this device.', 'ok');
+    } else {
+      setStatus('Saved locally. Google Sheets sync failed and will retry later.', 'err');
+    }
+
+    resetForm(true);
+  });
+
+  cancelBtn.addEventListener('click', function () {
+    resetForm();
+  });
+
+  exportCsvBtn.addEventListener('click', function () {
+    const visibleEntries = entries.filter(e => !e.deleted);
+
+    if (!visibleEntries.length) {
+      alert('No data to export.');
+      return;
+    }
+
+    const total = visibleEntries.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+    const rows = [
+      ['Date', 'Category', 'Amount', 'Note'],
+      ...visibleEntries.map(e => [e.date, e.category, e.amount, e.note || '']),
+      ['', 'Total', total.toFixed(2), '']
+    ];
+
+    const csv = rows.map(row => row.map(csvEscape).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'bgmuslimah-expenses.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  clearAllBtn.addEventListener('click', function () {
+    if (!confirm('Delete all saved expenses from this device?')) return;
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(PENDING_SYNC_KEY);
+    entries = [];
+    pendingSync = [];
+    resetForm();
+    render();
+    setStatus('All local data cleared.', 'ok');
+  });
+
+  function csvEscape(value) {
+    const s = String(value ?? '');
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+
+  window.addEventListener('online', flushPendingSync);
+  render();
+  flushPendingSync();
+</script>
 </body>
 </html>
