@@ -348,8 +348,12 @@
   }
 
   function generateId() {
-    return 'exp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-  }
+  const key = 'bgmuslimah_expense_counter';
+  let current = Number(localStorage.getItem(key) || '0');
+  current += 1;
+  localStorage.setItem(key, String(current));
+  return 'BGM-' + String(current).padStart(4, '0');
+}
 
   function loadEntries() {
     try {
